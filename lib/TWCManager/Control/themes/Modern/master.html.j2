@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang='en'>
+<head>
+    {% include "bootstrap.html.j2" %}
+    <title>{% block pagetitle %}{% endblock %}</title>
+    <script type="text/javascript" src="/static/js/status.js"></script>
+</head>
+<body>
+    {% include "navbar.html.j2" %}
+    <div class="container-fluid">
+        {% block content %}{% endblock %}
+    </div>
+    {% include "bootstrap.js.html.j2" %}
+    {% block javascripts %}{% endblock %}
+</body>
+</html>

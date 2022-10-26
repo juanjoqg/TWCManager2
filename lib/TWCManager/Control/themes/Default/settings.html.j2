@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang='en'>
+  <head>
+    <title>TWCManager</title>
+    {% include 'bootstrap.html.j2' %}
+    <script type="text/javascript" src="/static/js/settings.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+      html, body {
+        height: 100%;
+        padding: 0;
+        margin: 0;
+      }
+      #map {
+        /* configure the size of the map */
+        width: 50%;
+        height: 50%;
+      }
+    </style>
+  </head>
+  <body>
+    {% include 'navbar.html.j2' %}
+    <form method=POST action='/settings/save'>
+      <table>
+        <tr>
+          <th>Web Interface Theme</th>
+          <td>
+            {{ optionList(
+              [
+                ["Default", "Default Web Theme"],
+                ["Modern", "Modern Theme"],
+              ],
+              {
+                "name": "webControlTheme",
+                "value": master.settings.get("webControlTheme", "Modern"),
+              },
+            )|safe }}
+          </td>
+        </tr>
+        <tr>
+          <th>Stop Charging Method</th>
+          <td>
+            {{ optionList(
+              [
+                [1, "Tesla API"],
+                [2, "Stop Responding to Slaves"],
+                [3, "Send Stop Command"],
+              ],
+              {
+                "name": "chargeStopMode",
+                "value": master.settings.get("chargeStopMode", 1),
+              },
+            )|safe }}
+          </td>
+        </tr>
+        <tr>
+          <th>Non-Scheduled power action:</th>
+          <td>
+            {{ optionList(
+              [
+                [1, "Charge at specified Non-Scheduled Charge Rate"],
+                [2, "Do not Charge"],
+                [3, "Track Green Energy"],
+              ],
+              {
+                "name": "nonScheduledAction",
+                "value": master.settings.get("nonScheduledAction", 1),
+              },
+            )|safe }}
+          </td>
+        </tr>
+        <tr>
+          <th>Non-scheduled power charge rate:</th>
+          <td>
+            {{ optionList(ampsList[1:],
+                 {
+                   "name": "nonScheduledAmpsMax",
+                   "value": master.settings.get("nonScheduledAmpsMax", "6")
+                 })|safe }}
+          </td>
+        </tr>
+        <tr>
+          <th>Include ServerTime in Main UI:</th>
+          <td>
+            {{ optionList(
+              [
+                [0, "Do not include Server Time"],
+                [1, "Include Server Time"],
+              ],
+              {
+                "name": "sendServerTime",
+                "value": master.settings.get("sendServerTime", 0),
+              },
+            )|safe }}
+          </td>
+        </tr>
+        <tr>
+          <th>Charge Authorization Mode:</th>
+          <td>
+            {{ optionList(
+              [
+                [1, "Vehicles can charge unless explictly blocked"],
+                [2, "Vehicles can only charge if explicitly allowed"],
+              ],
+              {
+                "name": "chargeAuthorizationMode",
+                "value": master.settings.get("chargeAuthorizationMode", "1")
+              })|safe }}
+          </td>
+        </tr>
+        <tr>
+          <th>Charge Rate Control:</th>
+          <td>
+            {{ optionList(
+              [
+                [1, "Use TWC Exclusively to control Charge Rate"],
+                [2, "Use Tesla API Exclusively to control Charge Rate"],
+              ],
+              {
+                "name": "chargeRateControl",
+                "value": master.settings.get("chargeRateControl", "1")
+              })|safe }}
+          </td>
+        </tr>
+        <tr>
+          <th>Consumption Offsets</th>
+          <td>
+            <table id="consumptionOffsets">
+              <thead>
+                <tr>
+                  <th>Offset Name</th>
+                  <th>Offset</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+              <thead>
+                <tr>
+                  <td><input type="text" class='form-control' id="offsetName" size=8 value="Name"></td>
+                  <td><input type="text" class='form-control' id="offsetValue" size=3 value="0" /></td>
+                  <td>
+                    {{ optionList(
+                      [
+                        ["A", "Amps"],
+                        ["W", "Watts"],
+                      ],
+                      {
+                        "name": "offsetUnit",
+                    })|safe }}
+                    </td>
+                    <td>
+                    {{ addButton(
+                      ["addOffset", "Add / Edit", { "buttonType": "button" }],
+                      "class='btn btn-outline-success'",
+                      )|safe }}
+                  </td>
+                </tr>
+              </thead>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <th>Manual Tesla API key override (<a href="http://registration.teslatasks.com/generateTokens" target="_blank">link</a>):</th>
+          <td>
+            <table>
+              <tr>
+                <th>Access Token</th>
+                <th>Refresh Token</th>
+              </tr>
+              <tr>
+                <td><input type='text' class='form-control' id='carApiBearerToken' name='carApiBearerToken' value='' /></td>
+                <td><input type='text' class='form-control' id='carApiRefreshToken' name='carApiRefreshToken' value='' /></td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td>&nbsp;</td>
+          <td><input class='btn btn-outline-success' type=submit value='Save Settings' /></td>
+        </tr>
+      </table>
+    </form>
+    <p>Click <a href='https://github.com/ngardiner/TWCManager/tree/main/docs/Settings.md' target='_blank'>here</a> for detailed information on settings on this page</p>
+  </div>
+
+  <h2>Home Location</h2>
+
+  <p>The following pins show the Home and Current Locations of your vehicle. If both are the same, you'll see a single pin.</p>
+  <div id="map"></div>
+    <script>
+      // initialize Leaflet
+      var map = L.map('map').setView({lon: {{ master.settings.get("homeLon", "0")}}, lat: {{ master.settings.get("homeLat", "0")}}}, 8);
+
+      // add the OpenStreetMap tiles
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+      }).addTo(map);
+
+      // show the scale bar on the lower left corner
+      L.control.scale({imperial: true, metric: true}).addTo(map);
+
+      // show a marker on the map
+      L.marker({lon: {{ master.settings.get("homeLon", "0")}}, lat: {{ master.settings.get("homeLat", "0")}}}).bindPopup('Home Location').addTo(map);
+      {% for vehicle in vehicles() %}
+      L.marker({lon: {{ vehicle.lon }}, lat: {{ vehicle.lat }}}).bindPopup('{{ vehicle.name }} Current Location').addTo(map);
+      {% endfor %}
+    </script>
+    <ul>
+      <li>Your vehicle's home location has been learned as {{ master.settings.get("homeLon", "0")}}, {{ master.settings.get("homeLat", "0")}} </li>
+      <li>If you reset the Home Location, the location at which your vehicle next parks will be set as the Home Location. Alternatively, you can choose a vehicle from your account, from which the current location will be set as your Home Location.</li>
+    </ul>
+    <form method=POST action='/settings/homeLocation'>
+      <input class='btn btn-outline-success' type=submit name=unset value='Unset Home Location' />
+      <input class='btn btn-outline-success' type=submit name=learn value='Make Vehicle Location Home Location' />
+      <select name=vehicle>
+      {% for vehicle in vehicles() %}
+      <option value="{{ vehicle.lon }},{{ vehicle.lat }}">{{ vehicle.name }}</option>
+      {% endfor %}
+      </select>
+    </form>
+
+</body>
+</html>
+
