@@ -467,6 +467,20 @@
             "enabled": false,
             "token": "abcd1234"
         },
+      # The SCT013 module allows to get the consumption and generation through current sensors SCT-013
+      # SCT-03 should be connected to arduino analog IN pins
+      # Consumption: A0, A1, A2
+      # Generation: A3, A4, A5
+      # For single phase just A0 and A3 should be used
+      # Arduino could be connected to the raspberry through USB or using an esp8266 wifi
+      # configure ardinoPort for USB or arduinoIP for esp8266 wifi
+        "SCT013": {
+            "enabled": false,
+            "consumption": true,
+            "generation": false,
+            "arduinoPort": "/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0"
+            #"arduinoIP": "None"
+        },
         "Enphase": {
             "enabled": false,
 

@@ -87,6 +87,7 @@ modules_available = [
     "Control.MQTTControl",
     #    "Control.OCPPControl",
     "EMS.Efergy",
+    "EMS.SCT013",
     "EMS.EmonCMS",
     "EMS.Enphase",
     "EMS.Fronius",
